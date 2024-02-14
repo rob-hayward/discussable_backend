@@ -1,5 +1,21 @@
 # authentech_app/serializers.py
+from django.contrib.auth.models import User
 from rest_framework import serializers
+from .models import UserProfile
+
+
+from rest_framework import serializers
+from django.contrib.auth.models import User
+from .models import UserProfile
+
+
+class UserProfileSerializer(serializers.ModelSerializer):
+    email = serializers.EmailField(source='user.email', read_only=True)
+    preferred_name = serializers.CharField()
+
+    class Meta:
+        model = UserProfile
+        fields = ('email', 'preferred_name')
 
 
 class RegistrationChallengeSerializer(serializers.Serializer):

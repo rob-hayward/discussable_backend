@@ -6,6 +6,7 @@ from django.http import JsonResponse
 from django.conf import settings
 from django.contrib.auth.models import User
 from django.contrib.auth import login, logout
+from rest_framework.authtoken.models import Token
 from rest_framework.views import APIView
 from rest_framework.permissions import AllowAny
 from rest_framework.parsers import JSONParser
@@ -27,6 +28,33 @@ from webauthn.helpers.structs import PublicKeyCredentialDescriptor
 # Local app imports
 from .serializers import AuthenticationResponseSerializer
 from .models import WebAuthnCredential, UserProfile, EmailVerificationToken
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+from rest_framework.views import APIView
+from .serializers import UserProfileSerializer
+
+
+class UserProfileView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, format=None):
+        try:
+            user_profile = UserProfile.objects.get(user=request.user)
+            serializer = UserProfileSerializer(user_profile)
+            return Response(serializer.data)
+        except UserProfile.DoesNotExist:
+            return Response({"error": "UserProfile not found."}, status=404)
+
+    def put(self, request, format=None):
+        try:
+            user_profile = UserProfile.objects.get(user=request.user)
+            serializer = UserProfileSerializer(user_profile, data=request.data, partial=True)
+            if serializer.is_valid():
+                serializer.save()
+                return Response(serializer.data)
+            return Response(serializer.errors, status=400)
+        except UserProfile.DoesNotExist:
+            return Response({"error": "UserProfile not found."}, status=404)
 
 
 def send_verification_email(request):
@@ -152,9 +180,12 @@ class RegistrationResponseView(APIView):
                 sign_count=0
             )
 
-            # Logging the user in
+            # Log in the user and respond with success
             login(request, user)
-            return JsonResponse({"status": "success"})
+            # Generate or get existing token for the user
+            token, _ = Token.objects.get_or_create(user=user)
+            # Include the token in the response
+            return JsonResponse({"status": "success", "token": token.key})
 
         # Handling exceptions and returning an error response
         except Exception as e:
@@ -267,7 +298,10 @@ class AuthenticationResponseView(APIView):
 
                 # Log in the user and respond with success
                 login(request, user)
-                return JsonResponse({"status": "success"})
+                # Generate or get existing token for the user
+                token, _ = Token.objects.get_or_create(user=user)
+                # Include the token in the response
+                return JsonResponse({"status": "success", "token": token.key})
 
             except WebAuthnCredential.DoesNotExist:
                 # Handle the case where the credential does not exist

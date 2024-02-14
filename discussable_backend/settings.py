@@ -18,6 +18,7 @@ ALLOWED_HOSTS = []
 
 INSTALLED_APPS = [
     'authentech_app',
+    'discussable_app',
     'corsheaders',
     'django.contrib.admin',
     'django.contrib.auth',
