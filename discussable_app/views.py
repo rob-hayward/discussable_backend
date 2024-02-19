@@ -2,10 +2,13 @@
 
 from django.shortcuts import render, redirect
 from django.contrib.auth.decorators import login_required
+from django.db.models import Case, When, Value, BooleanField
 from django.shortcuts import get_object_or_404, render
+from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated, AllowAny
 
-from .models import Discussion, Comment, Vote
+from .models import Discussion, Comment, Vote, UserContentPreference, VisibilityStatus, update_user_content_preference, \
+    UserPreference
 
 from rest_framework.views import APIView
 from rest_framework.response import Response
@@ -16,6 +19,53 @@ from django.contrib.contenttypes.models import ContentType
 import logging
 
 logger = logging.getLogger(__name__)
+
+
+class DiscussionsListView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, *args, **kwargs):
+        user = request.user
+        sort_by = request.query_params.get('sort', 'created_at')
+        sort_options = {
+            'popularity': '-wilson_score',
+            'newest': '-created_at',
+            'oldest': 'created_at',
+        }
+        sort_field = sort_options.get(sort_by, '-created_at')
+
+        discussions = Discussion.objects.all().order_by(sort_field)
+        # Fetch user content preferences for these discussions
+        content_type = ContentType.objects.get_for_model(Discussion)
+        user_preferences = UserContentPreference.objects.filter(
+            user=user,
+            content_type=content_type,
+            object_id__in=discussions.values_list('id', flat=True)
+        ).values_list('object_id', 'preference')
+        user_pref_dict = {obj_id: pref for obj_id, pref in user_preferences}
+
+        # Include the user preference in the serialization context
+        context = {'request': request, 'user_preferences': user_pref_dict}
+        serializer = DiscussionSerializer(discussions, many=True, context=context)
+        return Response(serializer.data)
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def update_content_preference(request, votable_type, votable_id, preference):
+    # Ensure the preference is valid
+    if preference not in [pref.value for pref in UserPreference]:
+        return Response({"error": "Invalid preference"}, status=400)
+
+    # Dynamically get the model class based on votable_type
+    model_class = ContentType.objects.get(model=votable_type).model_class()
+
+    # Fetch the instance of the model (Discussion or Comment)
+    content_object = get_object_or_404(model_class, id=votable_id)
+
+    # Update or create the user's preference for this content object
+    update_user_content_preference(request.user, content_object, preference)
+
+    return Response({"message": f"Your preference for {votable_type} {votable_id} has been updated to {preference}."})
 
 
 class VoteView(APIView):
@@ -105,23 +155,6 @@ class DiscussionDetailView(APIView):
             return Response(status=status.HTTP_404_NOT_FOUND)
 
 
-class DiscussionsListView(APIView):
-    permission_classes = [AllowAny]
-
-    def get(self, request, format=None):
-        sort_by = request.query_params.get('sort', 'created_at')
-
-        # Map URL parameters to model fields for sorting
-        sort_options = {
-            'popularity': '-wilson_score',
-            'newest': '-created_at',
-            'oldest': 'created_at',
-        }
-        sort_field = sort_options.get(sort_by, '-created_at')
-
-        discussions = Discussion.objects.all().order_by(sort_field)
-        serializer = DiscussionSerializer(discussions, many=True)
-        return Response(serializer.data)
 
 
 

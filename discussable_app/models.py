@@ -44,7 +44,6 @@ class VisibilityStatus(Enum):
 class Votable(models.Model):
     creator = models.ForeignKey(User, on_delete=models.CASCADE)
     created_at = models.DateTimeField(auto_now_add=True)
-    VISIBILITY_THRESHOLD = 33  # Approval percentage below which content is hidden
     total_votes = models.PositiveIntegerField(default=0)
     positive_votes = models.PositiveIntegerField(default=0)
     negative_votes = models.PositiveIntegerField(default=0)
@@ -53,6 +52,7 @@ class Votable(models.Model):
     negative_percentage = models.DecimalField(max_digits=3, decimal_places=0, default=0)
     wilson_score = models.DecimalField(max_digits=10, decimal_places=8, default=0.0)
     visibility_status = models.CharField(max_length=20, choices=VisibilityStatus.choices(), default=VisibilityStatus.VISIBLE.value)
+    VISIBILITY_THRESHOLD = 33  # Approval percentage below which content is hidden
 
     class Meta:
         abstract = True
@@ -99,6 +99,15 @@ class Votable(models.Model):
         }
 
         return vote_data
+
+    def save(self, *args, **kwargs):
+        if self.total_votes > 0:
+            approval_percentage = (self.positive_votes / float(self.total_votes)) * 100
+            self.visibility_status = VisibilityStatus.HIDDEN.value if approval_percentage < self.VISIBILITY_THRESHOLD else VisibilityStatus.VISIBLE.value
+        else:
+            # If there are no votes, you might want to default to visible or some other logic
+            self.visibility_status = VisibilityStatus.VISIBLE.value
+        super(Votable, self).save(*args, **kwargs)
 
     def get_votes(self):
         return Vote.objects.filter(votable=self)
@@ -170,25 +179,39 @@ class Comment(Votable):
         return f"Comment by {self.creator.username} on \"{self.discussion.subject}\""
 
 
+class UserPreference(Enum):
+    SHOW = "show"
+    HIDE = "hide"
+    NONE = "none"  # Default, follow community votes
+    BLOCK = "block"  # Ignore all content from a specific user
+
+    @classmethod
+    def choices(cls):
+        return [(key.value, key.name) for key in cls]
+
+
 class UserContentPreference(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='content_preferences')
-    hidden_discussions = models.ManyToManyField(Discussion, blank=True)
-    hidden_comments = models.ManyToManyField(Comment, blank=True)
-    blocked_users = models.ManyToManyField(User, blank=True, related_name='blocked_by')
+    content_type = models.ForeignKey(ContentType, on_delete=models.CASCADE, null=False)
+    object_id = models.PositiveIntegerField(null=False)
+    content_object = GenericForeignKey('content_type', 'object_id')
+    preference = models.CharField(max_length=10, choices=UserPreference.choices(), default=UserPreference.NONE.value)
 
-    def hide_discussion(self, discussion):
-        self.hidden_discussions.add(discussion)
-
-    def show_discussion(self, discussion):
-        self.hidden_discussions.remove(discussion)
-
-    def hide_comment(self, comment):
-        self.hidden_comments.add(comment)
-
-    def show_comment(self, comment):
-        self.hidden_comments.remove(comment)
+    class Meta:
+        unique_together = ('user', 'content_type', 'object_id')
 
     def __str__(self):
-        return f"Content preferences for {self.user.username}"
+        return f"{self.user.username}'s preference for {self.content_object}"
 
+
+# Utility function to update user preferences
+def update_user_content_preference(user, content_object, preference):
+    content_type = ContentType.objects.get_for_model(content_object)
+    obj, created = UserContentPreference.objects.update_or_create(
+        user=user,
+        content_type=content_type,
+        object_id=content_object.id,
+        defaults={'preference': preference}
+    )
+    return obj
 
