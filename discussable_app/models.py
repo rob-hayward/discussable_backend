@@ -9,6 +9,8 @@ from django.db.models.functions import Greatest
 from django.contrib.contenttypes.fields import GenericForeignKey
 from django.contrib.contenttypes.models import ContentType
 
+from authentech_app.models import UserProfile
+
 
 class VoteType(Enum):
     POSITIVE = 1
@@ -43,6 +45,7 @@ class VisibilityStatus(Enum):
 
 class Votable(models.Model):
     creator = models.ForeignKey(User, on_delete=models.CASCADE)
+    creator_name = models.CharField(max_length=100, blank=True, editable=False)
     created_at = models.DateTimeField(auto_now_add=True)
     total_votes = models.PositiveIntegerField(default=0)
     positive_votes = models.PositiveIntegerField(default=0)
@@ -101,13 +104,21 @@ class Votable(models.Model):
         return vote_data
 
     def save(self, *args, **kwargs):
+        # Logic to set visibility status based on votes
         if self.total_votes > 0:
             approval_percentage = (self.positive_votes / float(self.total_votes)) * 100
             self.visibility_status = VisibilityStatus.HIDDEN.value if approval_percentage < self.VISIBILITY_THRESHOLD else VisibilityStatus.VISIBLE.value
         else:
-            # If there are no votes, you might want to default to visible or some other logic
             self.visibility_status = VisibilityStatus.VISIBLE.value
-        super(Votable, self).save(*args, **kwargs)
+
+        # Fetch the preferred_name from UserProfile and assign it to creator_name
+        # This is done every time a Votable object is saved to ensure the creator_name is always up to date
+        user_profile = UserProfile.objects.filter(user=self.creator).first()
+        if user_profile:
+            self.creator_name = user_profile.preferred_name
+
+        # Call the parent class's save method with all provided arguments
+        super().save(*args, **kwargs)
 
     def get_votes(self):
         return Vote.objects.filter(votable=self)

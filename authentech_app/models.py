@@ -3,6 +3,9 @@ from django.db import models
 from django.contrib.auth.models import User
 import uuid
 
+from django.db.models.signals import post_save
+from django.dispatch import receiver
+
 
 class UserProfile(models.Model):
     # Link to the User model with additional user information
@@ -23,3 +26,10 @@ class WebAuthnCredential(models.Model):
     credential_id = models.BinaryField(unique=True)
     public_key = models.BinaryField()
     sign_count = models.IntegerField()
+
+
+@receiver(post_save, sender=UserProfile)
+def update_votable_creator_name(sender, instance, **kwargs):
+    from discussable_app.models import Discussion, Comment  # Import here to avoid circular import
+    Discussion.objects.filter(creator=instance.user).update(creator_name=instance.preferred_name)
+    Comment.objects.filter(creator=instance.user).update(creator_name=instance.preferred_name)

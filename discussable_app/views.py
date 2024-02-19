@@ -56,7 +56,7 @@ class DiscussionDetailView(APIView):
     def get(self, request, discussion_id, format=None):
         try:
             discussion = Discussion.objects.get(pk=discussion_id)
-            comments = discussion.comments.all().order_by('-created_at')
+            comments = discussion.comments.all().order_by('created_at')
 
             # Fetch user content preferences for comments
             user = request.user

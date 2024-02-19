@@ -5,6 +5,7 @@ from .models import Discussion, Comment, Vote, UserContentPreference, UserPrefer
 
 
 class DiscussionSerializer(serializers.ModelSerializer):
+    creator = serializers.HiddenField(default=serializers.CurrentUserDefault())
     user_preference = serializers.SerializerMethodField()
 
     class Meta:
@@ -27,7 +28,7 @@ class CommentSerializer(serializers.ModelSerializer):
     class Meta:
         model = Comment
         fields = '__all__'
-        read_only_fields = ('creator', 'discussion')
+        read_only_fields = ('creator', 'discussion')  # Assuming these should not be directly set by the user
 
     def get_user_preference(self, obj):
         user_pref_dict = self.context.get('user_preferences', {})
