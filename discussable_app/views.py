@@ -49,6 +49,38 @@ class DiscussionsListView(APIView):
         serializer = DiscussionSerializer(discussions, many=True, context=context)
         return Response(serializer.data)
 
+
+class DiscussionDetailView(APIView):
+    permission_classes = [AllowAny]
+
+    def get(self, request, discussion_id, format=None):
+        try:
+            discussion = Discussion.objects.get(pk=discussion_id)
+            comments = discussion.comments.all().order_by('-created_at')
+
+            # Fetch user content preferences for comments
+            user = request.user
+            content_type = ContentType.objects.get_for_model(Comment)
+            user_preferences = UserContentPreference.objects.filter(
+                user=user,
+                content_type=content_type,
+                object_id__in=comments.values_list('id', flat=True)
+            ).values_list('object_id', 'preference')
+            user_pref_dict = {obj_id: pref for obj_id, pref in user_preferences}
+
+            # Include the user preference in the serialization context for comments
+            context = {'request': request, 'user_preferences': user_pref_dict}
+            discussion_serializer = DiscussionSerializer(discussion)
+            comments_serializer = CommentSerializer(comments, many=True, context=context)
+
+            return Response({
+                'discussion': discussion_serializer.data,
+                'comments': comments_serializer.data
+            })
+        except Discussion.DoesNotExist:
+            return Response(status=status.HTTP_404_NOT_FOUND)
+
+
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def update_content_preference(request, votable_type, votable_id, preference):
@@ -138,21 +170,7 @@ class CreateDiscussionView(APIView):
             return Response(discussion_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
-class DiscussionDetailView(APIView):
-    permission_classes = [AllowAny]
 
-    def get(self, request, discussion_id, format=None):
-        try:
-            discussion = Discussion.objects.get(pk=discussion_id)
-            comments = discussion.comments.all().order_by('-created_at')
-            discussion_serializer = DiscussionSerializer(discussion)
-            comments_serializer = CommentSerializer(comments, many=True)
-            return Response({
-                'discussion': discussion_serializer.data,
-                'comments': comments_serializer.data
-            })
-        except Discussion.DoesNotExist:
-            return Response(status=status.HTTP_404_NOT_FOUND)
 
 
 

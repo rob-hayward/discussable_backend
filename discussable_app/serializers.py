@@ -22,16 +22,21 @@ class DiscussionSerializer(serializers.ModelSerializer):
 
 
 class CommentSerializer(serializers.ModelSerializer):
+    user_preference = serializers.SerializerMethodField()
+
     class Meta:
         model = Comment
         fields = '__all__'
-        read_only_fields = ('creator', 'discussion')  # Assuming these should not be directly set by the user
+        read_only_fields = ('creator', 'discussion')
+
+    def get_user_preference(self, obj):
+        user_pref_dict = self.context.get('user_preferences', {})
+        return user_pref_dict.get(obj.id, UserPreference.NONE.value)
 
     def create(self, validated_data):
         user = self.context['request'].user
-        discussion = self.context['discussion']  # Access the discussion directly from context
+        discussion = self.context['discussion']
 
-        # Now correctly add 'creator' and 'discussion' to validated_data
         validated_data['creator'] = user
         validated_data['discussion'] = discussion
 
