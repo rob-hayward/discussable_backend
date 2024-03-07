@@ -1,5 +1,5 @@
 # discussable_app/views.py
-
+from django.http import JsonResponse
 from django.shortcuts import render, redirect
 from django.contrib.auth.decorators import login_required
 from django.db.models import Case, When, Value, BooleanField
@@ -80,6 +80,15 @@ class DiscussionDetailView(APIView):
         except Discussion.DoesNotExist:
             return Response(status=status.HTTP_404_NOT_FOUND)
 
+def hide_all_from_user(request, user_id):
+    if request.method == 'POST':
+        # Assuming the user is authenticated and you have user_id as the parameter
+        target_user_comments = Comment.objects.filter(creator_id=user_id)
+        for comment in target_user_comments:
+            update_user_content_preference(request.user, comment, UserPreference.HIDE.value)
+        return JsonResponse({'message': 'All comments from the user have been hidden.'})
+    else:
+        return JsonResponse({'error': 'Invalid request'}, status=400)
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
@@ -168,11 +177,3 @@ class CreateDiscussionView(APIView):
             return Response(discussion_serializer.data, status=status.HTTP_201_CREATED)
         else:
             return Response(discussion_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-
-
-
-
-
-
-

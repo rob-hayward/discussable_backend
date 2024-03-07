@@ -193,8 +193,7 @@ class Comment(Votable):
 class UserPreference(Enum):
     SHOW = "show"
     HIDE = "hide"
-    NONE = "none"  # Default, follow community votes
-    BLOCK = "block"  # Ignore all content from a specific user
+    NONE = "none"
 
     @classmethod
     def choices(cls):
@@ -225,4 +224,3 @@ def update_user_content_preference(user, content_object, preference):
         defaults={'preference': preference}
     )
     return obj
-
