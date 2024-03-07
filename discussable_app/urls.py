@@ -7,6 +7,7 @@ from .views import (
     VoteView,
     update_content_preference,
     hide_all_from_user,
+    show_all_from_user,
 )
 
 urlpatterns = [
@@ -17,4 +18,5 @@ urlpatterns = [
     path('vote/<str:votable_type>/<int:votable_id>/', VoteView.as_view(), name='vote'),
     path('preferences/<str:votable_type>/<int:votable_id>/<str:preference>/', update_content_preference, name='update-content-preference'),
     path('hide-all-from-user/<int:user_id>/', hide_all_from_user, name='hide-all-from-user'),
+    path('show-all-from-user/<int:user_id>/', show_all_from_user, name='show_all_from_user'),
 ]

@@ -80,6 +80,8 @@ class DiscussionDetailView(APIView):
         except Discussion.DoesNotExist:
             return Response(status=status.HTTP_404_NOT_FOUND)
 
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
 def hide_all_from_user(request, user_id):
     if request.method == 'POST':
         # Assuming the user is authenticated and you have user_id as the parameter
@@ -89,6 +91,18 @@ def hide_all_from_user(request, user_id):
         return JsonResponse({'message': 'All comments from the user have been hidden.'})
     else:
         return JsonResponse({'error': 'Invalid request'}, status=400)
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def show_all_from_user(request, user_id):
+    if request.method == 'POST':
+        target_user_comments = Comment.objects.filter(creator_id=user_id)
+        for comment in target_user_comments:
+            update_user_content_preference(request.user, comment, UserPreference.SHOW.value)
+        return JsonResponse({'message': 'All comments from the user will now be shown.'})
+    else:
+        return JsonResponse({'error': 'Invalid request'}, status=400)
+
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
