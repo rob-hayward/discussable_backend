@@ -31,6 +31,7 @@ class DiscussionsListView(APIView):
             'popularity': '-wilson_score',
             'newest': '-created_at',
             'oldest': 'created_at',
+            'total_votes': '-total_votes',
         }
         sort_field = sort_options.get(sort_by, '-created_at')
 
@@ -56,7 +57,19 @@ class DiscussionDetailView(APIView):
     def get(self, request, discussion_id, format=None):
         try:
             discussion = Discussion.objects.get(pk=discussion_id)
-            comments = discussion.comments.all().order_by('created_at')
+
+            # Retrieve sort parameter from request, with 'created_at' as default
+            sort_by = request.query_params.get('sort', 'newest')
+            sort_options = {
+                'popularity': '-wilson_score',
+                'newest': '-created_at',
+                'oldest': 'created_at',
+                'total_votes': '-total_votes',
+            }
+            sort_field = sort_options.get(sort_by, '-created_at')
+
+            # Order comments based on the selected sort option
+            comments = discussion.comments.all().order_by(sort_field)
 
             # Fetch user content preferences for comments
             user = request.user
@@ -79,6 +92,7 @@ class DiscussionDetailView(APIView):
             })
         except Discussion.DoesNotExist:
             return Response(status=status.HTTP_404_NOT_FOUND)
+
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
