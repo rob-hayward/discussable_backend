@@ -1,7 +1,7 @@
 # discussable_app/serializers.py
 
 from rest_framework import serializers
-from .models import Discussion, Comment, Vote, UserContentPreference, UserPreference
+from .models import Discussion, Comment, Vote, UserPreference
 
 
 class DiscussionSerializer(serializers.ModelSerializer):
@@ -10,7 +10,7 @@ class DiscussionSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Discussion
-        fields = '__all__'  # Adjust as needed
+        fields = '__all__'
 
     def get_user_preference(self, obj):
         user_pref_dict = self.context.get('user_preferences', {})
@@ -28,7 +28,7 @@ class CommentSerializer(serializers.ModelSerializer):
     class Meta:
         model = Comment
         fields = '__all__'
-        read_only_fields = ('creator', 'discussion')  # Assuming these should not be directly set by the user
+        read_only_fields = ('creator', 'discussion')
 
     def get_user_preference(self, obj):
         user_pref_dict = self.context.get('user_preferences', {})

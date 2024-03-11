@@ -117,7 +117,7 @@ class Votable(models.Model):
         if user_profile:
             self.creator_name = user_profile.preferred_name
 
-        # Call the parent class's save method with all provided arguments
+        # Call the parent class's 'save' method with all provided arguments
         super().save(*args, **kwargs)
 
     def get_votes(self):
@@ -171,9 +171,7 @@ class Vote(models.Model):
 
 class Discussion(Votable):
     subject = models.CharField(max_length=255)
-    category = models.CharField(max_length=50, blank=True, null=True)  # Optional category or tag field
-
-    # Additional Discussion-specific methods can be added here
+    category = models.CharField(max_length=50, blank=True, null=True)
 
     def __str__(self):
         return f"{self.subject} - {self.category if self.category else 'General'}"
@@ -183,8 +181,6 @@ class Comment(Votable):
     discussion = models.ForeignKey(Discussion, on_delete=models.CASCADE, related_name='comments')
     comment_content = models.TextField(blank=True, null=False)
     parent = models.ForeignKey('self', on_delete=models.CASCADE, related_name='replies', null=True, blank=True)
-
-    # Comment-specific methods can be added here
 
     def __str__(self):
         return f"Comment by {self.creator.username} on \"{self.discussion.subject}\""

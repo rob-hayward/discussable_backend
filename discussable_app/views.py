@@ -1,14 +1,10 @@
 # discussable_app/views.py
 from django.http import JsonResponse
-from django.shortcuts import render, redirect
-from django.contrib.auth.decorators import login_required
-from django.db.models import Case, When, Value, BooleanField
-from django.shortcuts import get_object_or_404, render
+from django.shortcuts import get_object_or_404
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated, AllowAny
 
-from .models import Discussion, Comment, Vote, UserContentPreference, VisibilityStatus, update_user_content_preference, \
-    UserPreference
+from .models import Discussion, Comment, Vote, UserContentPreference, update_user_content_preference, UserPreference
 
 from rest_framework.views import APIView
 from rest_framework.response import Response
@@ -171,7 +167,6 @@ class CreateCommentView(APIView):
         # Include the discussion in the serializer's context
         serializer = CommentSerializer(data=request.data, context={'request': request, 'discussion': discussion})
         if serializer.is_valid():
-            # No need to pass creator and discussion here since they're handled in the serializer's create method
             serializer.save()
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         else:
